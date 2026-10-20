@@ -47,3 +47,11 @@ body{overscroll-behavior:none}button,select,summary{touch-action:manipulation}he
  #hud.inspecting #carrierPanel{left:10px;right:auto;top:118px;width:210px;max-height:calc(100vh - 130px)}
 }
 @media(max-height:540px) and (min-width:701px){.bottom button{min-height:48px;min-width:110px}}
+/* Portrait: reserve separate rows for firing and reloading, above the sight mask. */
+@media (orientation:portrait) and (max-width:700px){
+ #touch{position:fixed;z-index:4;top:auto;bottom:calc(92px + env(safe-area-inset-bottom));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));height:60px;align-items:stretch;gap:8px}
+ #touch button{height:60px;min-height:60px;max-width:none;min-width:0;flex:1}
+ .bottom{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));height:64px;align-items:center;pointer-events:none}
+ .bottom #reload{height:52px;min-height:52px;pointer-events:auto}
+ #viewLabel{bottom:calc(160px + env(safe-area-inset-bottom));pointer-events:none}
+}
