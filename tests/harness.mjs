@@ -6,7 +6,9 @@ import {TargetCarrier} from '../src/game/carrier.js';
 import {SPORT_TARGET,mmToM,mToMM,scoreSportMM,drawSportTarget} from '../src/game/target-spec.js';
 import {AimFilter,comfortFov,sightRadiusPixels} from '../src/game/aim.js';
 import {acceptsSpace} from '../src/game/input.js';
+import {groupStats,readSessions,saveSession} from '../src/game/groups.js';
 export function game(profile='sport'){
+ const storage=new Map();
  const elements=new Map(),listeners={};
  function listen(key,fn){const old=listeners[key];listeners[key]=old?e=>{old(e);fn(e);}:fn;}
  const defaults={distance:'10',mode:'free',targetChoice:'1',profile,sensitivity:'1',comfort:'60'};
@@ -14,7 +16,7 @@ export function game(profile='sport'){
  const doc={getElementById:element,createElement:()=>element('generated'),querySelectorAll:()=>[],addEventListener:(type,fn)=>listeners[type]=fn,exitPointerLock(){},pointerLockElement:null};
  class Renderer{constructor(){this.shadowMap={};}setPixelRatio(){}setClearColor(){}setSize(){}render(){}}
  const math=Object.create(Math);math.random=()=>.5;
- const context=vm.createContext({T:{...Three,WebGLRenderer:Renderer},WEAPONS,scoreAt,TargetCarrier,SPORT_TARGET,mmToM,mToMM,scoreSportMM,drawSportTarget,AimFilter,comfortFov,sightRadiusPixels,acceptsSpace,document:doc,window:{addEventListener:(type,fn)=>listeners[type]=fn},devicePixelRatio:1,innerWidth:1280,innerHeight:720,matchMedia:()=>({matches:false}),localStorage:{getItem:()=>null,setItem(){}},requestAnimationFrame(){},performance:{now:()=>0},Math:math,console});
+ const context=vm.createContext({T:{...Three,WebGLRenderer:Renderer},WEAPONS,scoreAt,TargetCarrier,SPORT_TARGET,mmToM,mToMM,scoreSportMM,drawSportTarget,AimFilter,comfortFov,sightRadiusPixels,acceptsSpace,groupStats,readSessions,saveSession,document:doc,window:{addEventListener:(type,fn)=>listeners[type]=fn},devicePixelRatio:1,innerWidth:1280,innerHeight:720,matchMedia:()=>({matches:false}),localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},requestAnimationFrame(){},performance:{now:()=>0},Math:math,console});
  const source=fs.readFileSync(new URL('../src/game/main.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'');
  vm.runInContext(source+'\nglobalThis.probe={run:(code)=>eval(code)}',context);
  let clock=0;

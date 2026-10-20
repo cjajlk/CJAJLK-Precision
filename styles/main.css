@@ -24,3 +24,26 @@
 #hud .stats{position:relative;z-index:2;width:max-content;padding:10px 13px;background:#0d1914cc;border-radius:3px}#carrierPanel{z-index:3}#hud.diopter-view #feedback{z-index:3;top:77%}#hud.inspecting #viewLabel{bottom:26px}
 @media(max-width:700px){#viewLabel{bottom:205px;max-width:94vw;white-space:normal;font-size:9px}#hud.inspecting #viewLabel{bottom:155px}.sport-controls{gap:10px}#hud .stats{gap:18px;padding:8px}.profile-control{margin-top:12px}}
 .bottom,#viewLabel{z-index:3}#hud.diopter-view #viewLabel{color:#edf3df}button:disabled{cursor:default;opacity:.55}
+/* V2: controls remain outside the central aiming area in both orientations. */
+body{overscroll-behavior:none}button,select,summary{touch-action:manipulation}header{padding-top:env(safe-area-inset-top)}
+#touch{display:flex;bottom:120px;gap:8px}#touch button{border-radius:6px;width:auto;min-width:76px;min-height:48px;padding:10px;font-size:11px}
+#nextTarget{margin-top:8px;min-height:44px;width:100%}#sessionProgress{color:var(--lime);font-size:12px}#carrierPanel details{font-size:11px;line-height:1.5;margin-top:8px}#carrierPanel details label{display:block;margin:8px 0}summary{cursor:pointer;min-height:30px;padding:5px 0}#shotNumbers{overflow-wrap:anywhere}#sessionSave{display:block;color:#b5c9b8}#savedResults{font-size:12px;line-height:1.6}
+@media(max-width:700px),(pointer:coarse){
+ header{height:56px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}.brand b{font-size:19px}.brand small{font-size:8px}#menu{top:56px}.panel{padding-bottom:calc(25px + env(safe-area-inset-bottom))}#hud{top:56px}
+ #hud .stats{margin:6px 10px;gap:18px;padding:6px 10px}.stats small{font-size:8px;letter-spacing:.3px}.stats strong{font-size:20px;margin-top:3px}
+ #carrierPanel{top:118px;bottom:auto;right:10px;left:10px;width:auto;padding:8px}.carrier-heading{display:none}.carrier-controls{margin:0}.carrier-controls select,.carrier-controls button{min-height:44px}#carrierInfo{display:none}#carrierPanel details{margin-top:0}#sessionProgress{margin:5px 0}#nextTarget{margin-top:0}#carrierPanel:has(#nextTarget.hidden) details{display:none}
+ #touch{bottom:calc(78px + env(safe-area-inset-bottom));right:10px;left:10px;justify-content:center}#touch button{min-height:52px;flex:1;max-width:150px}#fire{background:#d6ff63;color:#13210d;font-weight:bold}
+ .bottom{bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px}.bottom strong{font-size:24px}.bottom small{font-size:8px;letter-spacing:.4px}.bottom p{margin:3px 0}.bottom button{min-height:48px;font-size:11px}.keys{display:none}#viewLabel{bottom:calc(140px + env(safe-area-inset-bottom));font-size:9px;padding:5px;max-width:95vw}#feedback{top:65%}
+ #hud.inspecting #carrierPanel{top:auto;bottom:calc(10px + env(safe-area-inset-bottom));max-height:34vh;overflow:auto}#hud.inspecting #viewLabel{display:none}#hud.inspecting .stats{opacity:.8}
+}
+@media(max-height:540px) and (min-width:701px){
+ header{height:48px}.live{display:none}#menu{top:48px}.panel{width:65%;padding:12px 20px}#hud{top:48px}#hud .stats{position:fixed;top:50px;left:8px;margin:0;gap:12px}#carrierPanel{top:52px;left:auto;right:max(10px,env(safe-area-inset-right));width:220px;padding:7px}#carrierPanel details{max-height:100px;overflow:auto}.carrier-heading,#carrierInfo{display:none}.carrier-controls{margin:0}.carrier-controls button,.carrier-controls select{min-height:44px}#touch{left:auto;right:10px;bottom:80px;display:flex;flex-direction:column;gap:5px}#touch button{min-height:44px;padding:7px;width:110px}#viewLabel{bottom:12px;max-width:46vw;white-space:normal}.bottom{bottom:8px}.bottom #reload{margin-right:0}#hud.inspecting #carrierPanel{top:55px;bottom:auto;left:auto;width:230px;max-height:calc(100vh - 70px)}#hud.inspecting #viewLabel{display:none}
+}
+@media(max-height:540px) and (min-width:701px){
+ #hud .stats{padding:6px 8px;gap:12px}.stats small{font-size:8px;letter-spacing:.3px}.stats strong{font-size:20px;margin-top:4px}.keys{display:none}
+ #carrierPanel{left:max(10px,env(safe-area-inset-left));right:auto;top:118px;width:210px;max-height:calc(100vh - 200px);overflow:auto}
+ #touch{top:80px;bottom:auto;right:max(10px,env(safe-area-inset-right))}#touch button{height:50px;min-height:50px}
+ .bottom strong{font-size:24px}.bottom p{margin:3px 0}.bottom small{font-size:8px;letter-spacing:.3px}
+ #hud.inspecting #carrierPanel{left:10px;right:auto;top:118px;width:210px;max-height:calc(100vh - 130px)}
+}
+@media(max-height:540px) and (min-width:701px){.bottom button{min-height:48px;min-width:110px}}

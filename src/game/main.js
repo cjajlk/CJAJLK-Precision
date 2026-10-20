@@ -4,16 +4,17 @@ import { scoreAt, WEAPONS } from './rules.js';
 import { SPORT_TARGET, mmToM, mToMM, scoreSportMM, drawSportTarget } from './target-spec.js';
 import { AimFilter, comfortFov, sightRadiusPixels } from './aim.js';
 import { acceptsSpace } from './input.js';
+import { groupStats, readSessions, saveSession } from './groups.js';
 const $=id=>document.getElementById(id), canvas=$('scene');
 let renderer;
 try{renderer=new T.WebGLRenderer({canvas,antialias:true});}catch(e){$('error').textContent='La 3D nécessite WebGL. Essayez un navigateur récent avec l’accélération graphique activée.';throw e;}
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.setClearColor(0x18231f);renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.setClearColor(0x18231f);renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;
 const scene=new T.Scene();scene.fog=new T.Fog(0x19251f,25,85);const camera=new T.PerspectiveCamera(55,innerWidth/innerHeight,.04,120);camera.position.set(0,1.65,4);camera.rotation.order='YXZ';scene.add(camera);scene.add(new T.HemisphereLight(0xd6f3e4,0x343126,2));
 const mat=(color,metalness=0,roughness=.7)=>new T.MeshStandardMaterial({color,metalness,roughness});
 const concrete=mat(0x3c4941), dark=mat(0x17251f), steel=mat(0x344139,.75,.3), wood=mat(0x644a32), black=mat(0x151c1b,.65,.28), accent=mat(0xd5f279,.2), glow=new T.MeshBasicMaterial({color:0xe0ffe1});
 function box(w,h,d,m,x,y,z,parent=scene){const o=new T.Mesh(new T.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.receiveShadow=true;o.castShadow=true;parent.add(o);return o;}
 box(18,.2,85,concrete,0,-.1,-32);box(18,.3,85,dark,0,5,-32);box(.3,5,85,concrete,-9,2.5,-32);box(.3,5,85,concrete,9,2.5,-32);box(18,5,.4,dark,0,2.5,-72);
-for(let z=2;z>-70;z-=7){box(17,.12,.13,steel,0,4.7,z);for(const x of [-5,0,5]){box(1.8,.04,.4,glow,x,4.5,z);const light=new T.PointLight(0xd9ffdc,17,13,2);light.position.set(x,4.25,z);scene.add(light);}box(17,.01,.035,steel,0,.02,z);}
+for(let z=2;z>-70;z-=7){box(17,.12,.13,steel,0,4.7,z);for(const x of [-5,0,5]){box(1.8,.04,.4,glow,x,4.5,z);if(x===0){const light=new T.PointLight(0xd9ffdc,36,20,2);light.position.set(x,4.25,z);scene.add(light);}}box(17,.01,.035,steel,0,.02,z);}
 for(const x of [-6,-2,2,6]){box(.12,2.2,3,steel,x,1.1,3.4);box(.07,1.5,2.8,mat(0x43584a),x,1.7,3.4);box(.04,.04,65,steel,x,4,-30);}
 box(3.9,.12,.8,wood,0,.9,2.5);for(const x of [-1.7,1.7])box(.12,.9,.65,steel,x,.45,2.5);
 for(let z=-5;z>-65;z-=10){box(.07,.012,3,accent,-.95,.02,z);box(.07,.012,3,accent,.95,.02,z);}
@@ -75,6 +76,7 @@ function buildOptic(){
 }
 const carrier=new TargetCarrier();let selectedTarget=1,inspectionBlend=0,resumeRequired=false,sport=false,menuWeapon=0;
 const aimFilter=new AimFilter();let currentPose={yaw:0,pitch:0};
+let sessionLimit=0,cardIndex=0,sessionId="",sessionSaved=true,reloadZoom=false;
 const shotLog=[];const ammoByWeapon=WEAPONS.map(w=>w.capacity);
 function inspectionBusy(){return carrier.inspecting||inspectionBlend>.001||resumeRequired;}
 function basePitch(){return sport?Math.atan2(SPORT_TARGET.centerHeightM-1.65,SPORT_TARGET.distanceM):0;}
@@ -83,6 +85,7 @@ function setProfileControls(){const isSport=$('profile').value==='sport';for(con
 $('profile').onchange=setProfileControls;
 setProfileControls();
 const targetTotals=targets.map(()=>({shots:0,points:0}));
+const holeMaterial=new T.MeshBasicMaterial({color:0x34332c,side:T.DoubleSide});
 const tornPaper=new T.MeshBasicMaterial({color:0xb7ab88,side:T.DoubleSide});
 // A rail and carriage make the target's travel physically visible.
 for(const t of targets){box(.035,.055,65,steel,t.base,4.57,-28);box(.3,.13,.25,steel,0,4.45,0,t.group);}
@@ -97,15 +100,34 @@ function retrieveTarget(){
 }
 function updateCarrierUI(){
  const busy=carrier.state==='bringing'||carrier.state==='sending'||(!carrier.inspecting&&inspectionBlend>.001);
- $('retrieve').disabled=busy;$('targetChoice').disabled=inspectionBusy();
+ $('retrieve').disabled=busy;$('targetChoice').disabled=inspectionBusy()||(sport&&sessionLimit>0);
  $('retrieve').textContent=carrier.state==='range'?(resumeRequired?'REPRENDRE LE TIR [T]':'RAMENER [T]'):carrier.state==='close'?'RENVOYER [T]':'EN MOUVEMENT…';
  $('carrierState').textContent=carrier.state==='range'?'EN POSITION':carrier.state==='close'?'À EXAMINER':carrier.state==='bringing'?'RETOUR':'ENVOI';
- $('carrierInfo').textContent=carrier.inspecting?`${carrier.position.toFixed(1)} m · Tir désactivé${mode==='challenge'?' · Chrono suspendu':''}`:'← → : choisir la cible · T : ramener';
+ $('carrierInfo').textContent=carrier.inspecting?`${carrier.position.toFixed(1)} m · Tir désactivé${mode==='challenge'?' · Chrono suspendu':''}`:sport&&sessionLimit?'5 plombs par carton · T : ramener':'← → : choisir la cible · T : ramener';
  const total=targetTotals[selectedTarget];
+ const cardShots=shotLog.filter(s=>s.card===cardIndex);
+ $('nextTarget').classList.toggle('hidden',!sport||!sessionLimit);
+ $('nextTarget').disabled=cardShots.length<5||shots>=sessionLimit||inspectionBusy()||paused;
+ $('sessionProgress').textContent=sport&&sessionLimit?('Carton '+(cardIndex+1)+' · '+cardShots.length+'/5 · Séance '+shots+'/'+sessionLimit):'';
+ $('sessionHistory').textContent=sport&&sessionLimit?Array.from({length:cardIndex+1},(_,i)=>{const st=groupStats(shotLog.filter(s=>s.card===i));return 'C'+(i+1)+': '+st.score+' pts / '+st.shots+' tirs · décentrage '+(st.offset===null?'—':st.offset.toFixed(1)+' mm')+' · dispersion '+(st.dispersion===null?'—':st.dispersion.toFixed(1)+' mm');}).join(' · '):'';
+ $('sessionSave').textContent=sessionLimit?(sessionSaved?'Résultats sauvegardés sur cet appareil':'Sauvegarde indisponible sur cet appareil'):'';
+ $('shotNumbers').classList.toggle('hidden',carrier.state!=='close'||!$('numbers').checked);
+ $('shotNumbers').textContent=carrier.state==='close'&&$('numbers').checked?cardShots.map((s,i)=>'#'+(i+1)+' : '+(s.impactMM?s.impactMM.x.toFixed(1)+', '+s.impactMM.y.toFixed(1)+' mm':'non mesuré')+(s.onCard?'':' · manqué')).join(' | '):'';
  $('targetReport').textContent=carrier.state==='close'?`${total.shots} impact${total.shots>1?'s':''} sur ce carton · ${total.points} points. Les impacts sont conservés au renvoi.`:'';
+ if(sport&&carrier.state==='close'){
+ const chosen=groupStats(shotLog.filter(s=>sessionLimit?s.card===cardIndex:s.intendedTarget===selectedTarget));
+ const mm=v=>v===null?'—':v.toFixed(1)+' mm';
+ $('targetReport').textContent=chosen.shots+' plombs · '+chosen.score+' points · Centre '+(chosen.center?chosen.center.x.toFixed(1)+', '+chosen.center.y.toFixed(1)+' mm':'—')+' · Décentrage '+mm(chosen.offset)+' · Dispersion (centre à centre) '+mm(chosen.dispersion)+' · '+chosen.measured+' positions mesurées, manqués inclus.';
+ }
  $('hud').classList.toggle('inspecting',inspectionBusy());
 }
 $('retrieve').onclick=retrieveTarget;
+ function recenter(){if(!active||paused||inspectionBusy())return;yaw=0;pitch=basePitch();recoil=0;aimFilter.reset(yaw,pitch);currentPose={yaw,pitch};camera.rotation.set(pitch,yaw,0);camera.updateMatrixWorld(true);trigger=false;}
+ $('recenter').onclick=recenter;
+ function nextTarget(){if(!sport||!sessionLimit||inspectionBusy()||paused||shots>=sessionLimit||shotLog.filter(s=>s.card===cardIndex).length<5)return;cardIndex++;clearMarks();targetTotals.forEach(t=>{t.shots=0;t.points=0;});recenter();persistSession();updateCarrierUI();}
+ $('nextTarget').onclick=nextTarget;
+ function persistSession(){if(!sport||!sessionLimit)return;sessionSaved=saveSession(localStorage,{id:sessionId,limit:sessionLimit,card:cardIndex,complete:shots>=sessionLimit,shots:shotLog});}
+ function refreshSavedResults(){$('savedResults').textContent=readSessions(localStorage).map(s=>s.shots.length+'/'+s.limit+' plombs · '+groupStats(s.shots).score+' points · '+Array.from({length:Math.ceil(s.shots.length/5)},(_,i)=>{const st=groupStats(s.shots.filter(p=>p.card===i));return 'C'+(i+1)+': '+st.score+' pts, écart '+(st.dispersion===null?'—':st.dispersion.toFixed(1)+' mm');}).join(' / ')).join(' | ')||'Aucune séance sauvegardée.';}refreshSavedResults();
 let aimBlend=0;
 let weapon=0,ammo=12,active=false,paused=false,score=0,shots=0,hits=0,remaining=60,mode='free',moving=false,zoom=false,trigger=false,lastShot=-100,reloadLeft=0,recoil=0,yaw=0,pitch=0,elapsed=0,feedbackLeft=0,best=0;
 try{best=Number(localStorage.getItem('cjajlk-precision-best'))||0;}catch{}$('best').textContent=best;
@@ -122,16 +144,17 @@ function selectWeapon(n){
  ammoByWeapon[weapon]=ammo;weapon=n;menuWeapon=n;ammo=ammoByWeapon[n];trigger=false;zoom=false;buildGun();
  document.querySelectorAll('[data-weapon]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.weapon)===n));updateHUD();
 }
-function reload(){if(!active||paused||inspectionBusy()||reloadLeft||ammo===WEAPONS[weapon].capacity)return;reloadLeft=WEAPONS[weapon].reload;trigger=false;zoom=false;sound('reload');updateHUD();}
+function reload(){if(!active||paused||inspectionBusy()||reloadLeft||ammo===WEAPONS[weapon].capacity)return;reloadZoom=zoom;reloadLeft=WEAPONS[weapon].reload;trigger=false;zoom=false;sound('reload');updateHUD();}
 function shoot(){
  if(!active||paused||inspectionBusy()||reloadLeft||elapsed-lastShot<WEAPONS[weapon].interval)return;
+ if(sport&&sessionLimit&&(shots>=sessionLimit||shotLog.filter(s=>s.card===cardIndex).length>=5)){trigger=false;return;}
  if(ammo<=0){reload();return;}
  // Use the camera pose last presented to the player. Recoil is applied afterwards.
  const spread=sport?0:WEAPONS[weapon].spread*(zoom?.35:1);
  v2.set(sport?0:(Math.random()-.5)*spread,sport?0:(Math.random()-.5)*spread);
  camera.updateMatrixWorld(true);scene.updateMatrixWorld(true);ray.setFromCamera(v2,camera);
  // Impact decorations must never participate in the target collision query.
- const intersection=ray.intersectObjects(targets.map(t=>t.face),false)[0];
+ const intersection=ray.intersectObjects((sport&&sessionLimit?[targets[1]]:targets).map(t=>t.face),false)[0];
  let pts=0,index=null,local=null;
  if(intersection){index=targets.findIndex(t=>t.face===intersection.object);local=intersection.object.worldToLocal(intersection.point.clone());pts=sport?scoreSportMM(mToMM(local.x),mToMM(local.y)):scoreAt(local.x,local.y);}
  // Commit one departure only after the collision and scoring completed.
@@ -139,22 +162,22 @@ function shoot(){
  const planeTarget=targets[Number($('targetChoice').value)];
  let planePoint=local;
  if(!intersection){const worldPlane=new T.Plane(new T.Vector3(0,0,1),-planeTarget.face.getWorldPosition(new T.Vector3()).z);const hit=ray.ray.intersectPlane(worldPlane,new T.Vector3());if(hit)planePoint=planeTarget.face.worldToLocal(hit);}
- shotLog.push({id:shots,profile:sport?'air-rifle-10m':'legacy',weapon,target:index,intendedTarget:Number($('targetChoice').value),time:elapsed,score:pts,onCard:!!intersection,
+ shotLog.push({card:cardIndex,id:shots,profile:sport?'air-rifle-10m':'legacy',weapon,target:index,intendedTarget:Number($('targetChoice').value),time:elapsed,score:pts,onCard:!!intersection,
  impactMM:planePoint?{x:mToMM(planePoint.x),y:mToMM(planePoint.y)}:null,
  aim:{yaw:camera.rotation.y,pitch:camera.rotation.x,origin:camera.position.toArray(),direction:ray.ray.direction.toArray(),oscillations:sport&&$('oscillations').checked,sensitivity:Number($('sensitivity').value),comfort:sport?Number($('comfort').value):1}});
  if(intersection){
  targetTotals[index].shots++;targetTotals[index].points+=pts;if(pts>0){hits++;score+=pts;}
  const radius=sport?mmToM(SPORT_TARGET.pelletMM)/2:.012;
- const mark=new T.Mesh(new T.CircleGeometry(radius,24),black);mark.position.set(local.x,local.y,sport?.0001:.005);
- const tear=new T.Mesh(new T.RingGeometry(radius,radius*(sport?1.12:1.5),24),tornPaper);tear.position.z=sport?-.00001:-.001;mark.add(tear);
+ const mark=new T.Mesh(new T.CircleGeometry(radius,32),holeMaterial);mark.position.set(local.x,local.y,sport?.0001:.005);
+ const tear=new T.Mesh(new T.RingGeometry(radius,radius*(sport?1.025:1.5),24),tornPaper);tear.position.z=sport?-.00001:-.001;mark.add(tear);
  intersection.object.add(mark);marks.push(mark);if(marks.length>160){const old=marks.shift();old.removeFromParent();old.traverse(o=>o.geometry?.dispose());}
  }
  $('feedback').textContent=pts?('+'+pts+(pts===10?' · PLEIN CENTRE':'')):'HORS ZONE';feedbackLeft=.8;
- recoil+=sport?.006:WEAPONS[weapon].recoil;flash.intensity=sport?0:8;sound('shot');updateHUD();
+ recoil+=sport?.006:WEAPONS[weapon].recoil;flash.intensity=sport?0:8;sound('shot');persistSession();updateHUD();
 }
 function clearMarks(){marks.splice(0).forEach(m=>{m.removeFromParent();m.traverse(o=>o.geometry?.dispose());});}
 function start(){
- sport=$('profile').value==='sport';active=true;paused=false;score=shots=hits=0;remaining=60;
+ sport=$('profile').value==='sport';sessionLimit=sport?Number($('series').value)||0:0;cardIndex=0;sessionId=Date.now()+'-'+Math.random().toString(36).slice(2);sessionSaved=true;reloadZoom=false;active=true;paused=false;score=shots=hits=0;remaining=60;
  mode=sport?'free':$('mode').value;moving=!sport&&$('moving').checked;const distance=sport?SPORT_TARGET.distanceM:Number($('distance').value);
  carrier.reset(distance);inspectionBlend=0;resumeRequired=false;selectedTarget=1;$('targetChoice').value='1';
  camera.position.set(0,1.65,4);targetTotals.forEach(t=>{t.shots=0;t.points=0;});clearMarks();shotLog.length=0;configureTargets();
@@ -165,19 +188,19 @@ function start(){
  $('menu').classList.add('hidden');$('results').classList.add('hidden');$('hud').classList.remove('hidden');$('resume').classList.remove('hidden');capture();updateHUD();
 }
 function capture(){if(!inspectionBusy()&&matchMedia('(pointer:fine)').matches){try{const p=canvas.requestPointerLock();p?.catch(()=>{});}catch{}}}
-function pause(){if(!active)return;paused=true;trigger=zoom=false;document.exitPointerLock?.();$('menu').classList.remove('hidden');$('hud').classList.add('hidden');$('start').textContent='RECOMMENCER LA SESSION ↗';}
+function pause(){if(!active)return;refreshSavedResults();paused=true;trigger=zoom=false;document.exitPointerLock?.();$('menu').classList.remove('hidden');$('hud').classList.add('hidden');$('start').textContent='RECOMMENCER LA SESSION ↗';}
 function resume(){paused=false;$('menu').classList.add('hidden');$('hud').classList.remove('hidden');capture();}
 function finish(){active=false;trigger=zoom=false;document.exitPointerLock?.();if(score>best){best=score;try{localStorage.setItem('cjajlk-precision-best',best);}catch{}}$('best').textContent=best;$('finalScore').textContent=score;$('finalStats').textContent=`${shots} tirs · ${hits} impacts dans la cible · ${shots?Math.round(hits/shots*100):0} % dans les anneaux. Record : ${best} points.`;$('hud').classList.add('hidden');$('results').classList.remove('hidden');}
 $('start').onclick=start;$('resume').onclick=resume;$('pause').onclick=pause;$('reload').onclick=reload;$('again').onclick=()=>{$('results').classList.add('hidden');$('menu').classList.remove('hidden');$('resume').classList.add('hidden');};document.querySelectorAll('[data-weapon]').forEach(b=>b.onclick=()=>{if(paused){menuWeapon=Number(b.dataset.weapon);setProfileControls();}else selectWeapon(Number(b.dataset.weapon));});
 function aim(dx,dy){
  if(!active||paused||inspectionBusy())return;
- const sensitivity=sport&&zoom?.000012*Number($('sensitivity').value):zoom?.00055:.0014;
+ const sensitivity=sport?(zoom?.000012:.00012)*Number($('sensitivity').value):zoom?.00055:.0014;
  yaw=T.MathUtils.clamp(yaw-dx*sensitivity,-.64,.64);pitch=T.MathUtils.clamp(pitch-dy*sensitivity,-.38,.38);
 }
 
 document.addEventListener('mousemove',e=>{if(document.pointerLockElement===canvas)aim(e.movementX,e.movementY);});canvas.addEventListener('pointerdown',e=>{if(!active||paused)return;if(e.pointerType==='mouse'){if(e.button===0){trigger=true;shoot();}if(e.button===2&&!inspectionBusy())zoom=true;}});let touchPoint=null;canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'){touchPoint={x:e.clientX,y:e.clientY,id:e.pointerId};canvas.setPointerCapture(e.pointerId);}});canvas.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'&&touchPoint?.id===e.pointerId){aim((e.clientX-touchPoint.x)*2,(e.clientY-touchPoint.y)*2);touchPoint={x:e.clientX,y:e.clientY,id:e.pointerId};}else if(e.pointerType==='mouse'&&document.pointerLockElement!==canvas&&active&&!paused){aim(e.movementX,e.movementY);}});window.addEventListener('pointerup',e=>{if(e.button===0)trigger=false;if(touchPoint?.id===e.pointerId)touchPoint=null;if(e.pointerType==='mouse'&&e.button===2)zoom=false;});window.addEventListener('pointercancel',()=>{trigger=false;touchPoint=null;});window.addEventListener('contextmenu',e=>e.preventDefault());$('fire').addEventListener('pointerdown',e=>{e.preventDefault();trigger=true;shoot();});$('zoom').onclick=()=>{if(active&&!paused&&!inspectionBusy())zoom=!zoom;};
-window.addEventListener('keydown',e=>{if(e.target.matches('select,input'))return;if(e.code==='Escape'){pause();return;}if(!active||paused)return;if(e.code==='Space'){e.preventDefault();if(acceptsSpace(e,weapon))shoot();}if(!inspectionBusy()&&(e.code==='ArrowLeft'||e.code==='ArrowRight')){e.preventDefault();const next=(Number($('targetChoice').value)+(e.code==='ArrowRight'?1:2))%3;$('targetChoice').value=String(next);}
-if(e.code==='KeyT'&&!e.repeat)retrieveTarget();if(e.code==='KeyV'&&!e.repeat&&!inspectionBusy()){zoom=!zoom;}if(e.code==='KeyR')reload();if(['Digit1','Digit2','Digit3'].includes(e.code))selectWeapon(Number(e.code.slice(-1))-1);});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&active&&!paused&&!inspectionBusy())pause();});window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+window.addEventListener('keydown',e=>{if(e.target.matches('select,input'))return;if(e.code==='Escape'){pause();return;}if(!active||paused)return;if(e.code==='Space'){e.preventDefault();if(acceptsSpace(e,weapon))shoot();}if(!inspectionBusy()&&!(sport&&sessionLimit)&&(e.code==='ArrowLeft'||e.code==='ArrowRight')){e.preventDefault();const next=(Number($('targetChoice').value)+(e.code==='ArrowRight'?1:2))%3;$('targetChoice').value=String(next);}
+if(e.code==='KeyC'&&!e.repeat)recenter();if(e.code==='KeyT'&&!e.repeat)retrieveTarget();if(e.code==='KeyV'&&!e.repeat&&!inspectionBusy()){zoom=!zoom;}if(e.code==='KeyR')reload();if(['Digit1','Digit2','Digit3'].includes(e.code))selectWeapon(Number(e.code.slice(-1))-1);});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&active&&!paused&&!inspectionBusy())pause();});window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}window.addEventListener('resize',resize);resize();buildGun();targets.forEach(t=>t.group.position.set(t.base,0,-6));
 let previous=performance.now();
 function frame(now){
@@ -187,7 +210,7 @@ function frame(now){
  if(active&&!paused){
   elapsed+=dt;
   if(mode==='challenge'&&!inspectionBusy()){remaining=Math.max(0,remaining-dt);if(remaining===0)finish();}
-  if(reloadLeft>0){reloadLeft=Math.max(0,reloadLeft-dt);if(reloadLeft===0){ammo=WEAPONS[weapon].capacity;ammoByWeapon[weapon]=ammo;}}
+  if(reloadLeft>0){reloadLeft=Math.max(0,reloadLeft-dt);if(reloadLeft===0){ammo=WEAPONS[weapon].capacity;ammoByWeapon[weapon]=ammo;zoom=reloadZoom;reloadZoom=false;}}
   if(moving&&!inspectionBusy())targets.forEach((t,i)=>t.group.position.x=t.base+Math.sin(elapsed*.8+i)*.75);
   const wasInspecting=carrier.inspecting;
   const near=sport?.5:Math.max(2,1.03/(Math.tan(55*Math.PI/360)*Math.min(camera.aspect,1)));
@@ -206,7 +229,7 @@ function frame(now){
  const normalFov=T.MathUtils.lerp(55,aimedFov,aimBlend);
  camera.fov=T.MathUtils.lerp(normalFov,sport?18/Math.min(1,camera.aspect):55,inspectionBlend);camera.updateProjectionMatrix();camera.updateMatrixWorld(true);
  gun.visible=active&&!paused&&!inspectionBusy()&&!(sport&&aimBlend>.2);
- gun.position.set(.25*(1-aimBlend),T.MathUtils.lerp(-.27,-opticHeight,aimBlend)-reloadLeft*.06-Math.sin(elapsed*1.6)*.002*(1-aimBlend),-.42+recoil*(1-aimBlend*.8));gun.rotation.x=recoil*.6*(1-aimBlend)+(reloadLeft>0?-.5:0);
+ gun.position.set((sport?0:.25)*(1-aimBlend),T.MathUtils.lerp(-.27,-opticHeight,aimBlend)-reloadLeft*.06-Math.sin(elapsed*1.6)*.002*(1-aimBlend),-.42+recoil*(1-aimBlend*.8));gun.rotation.x=recoil*.6*(1-aimBlend)+(reloadLeft>0?-.5:0);
  const throughOptic=aiming&&aimBlend>.94;
  $('hud').classList.toggle('diopter-view',throughOptic&&weapon===1);$('opticReticle').classList.toggle('visible',throughOptic&&!sport&&weapon!==1);
  $('sportSight').classList.toggle('hidden',!throughOptic||!sport);
@@ -216,7 +239,7 @@ function frame(now){
  // Automatic fire is computed only after this frame's pose is ready.
  if(active&&!paused&&trigger&&weapon===2)shoot();
  if(active){updateCarrierUI();updateHUD();}
- renderer.render(scene,camera);
+ if(!paused)renderer.render(scene,camera);
 }
 
 requestAnimationFrame(frame);

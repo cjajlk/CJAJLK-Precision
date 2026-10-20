@@ -1,3 +1,10 @@
+# Version 0.6.0 — Correctifs V2
+
+Séances sportives de 5, 20 ou 40 plombs : cinq plombs par carton, puis **CARTON SUIVANT**. Utilisez **C / RECENTRER**, **V / VISÉE**, **Espace / TIR**, **R / RECHARGER** et **T / RAMENER**. Après renvoi, attendez la fin de transition puis reprenez le tir avec T ou le bouton.
+
+Les résultats sont sauvegardés sur cet appareil et consultables dans les réglages. L'examen distingue le score, le centrage et la dispersion en millimètres. Consultez [le rapport V2](docs/CORRECTIFS-V2.md) pour les essais et limites. Tests : `node --test tests/*.test.mjs`.
+
+---
 # LOT 1 — Visée V2 et fiabilisation (0.5.0)
 
 Version locale du 19 octobre 2026. Les modes historiques restent disponibles dans le sélecteur PROFIL. Aucun LOT 2 ou LOT 3 implémenté.
@@ -71,4 +78,3 @@ Validation : rendu du dioptre inspecté dans le navigateur ; tir sur cible donna
 - Impacts conservés et nombre d'impacts/points affichés pour le carton examiné.
 - Les petites bordures claires autour des impacts permettent de les lire dans le noir de la cible.
 Tests : `node --test tests/rules.test.mjs tests/carrier.test.mjs` (4 tests réussis).
-
