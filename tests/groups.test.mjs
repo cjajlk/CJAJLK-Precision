@@ -10,7 +10,8 @@ test('mesures physiques : centre, écart extrême, manqués et cas insuffisants'
 test('séances 5, 20, 40 : arrêt à cinq, changement explicite, sauvegarde et fin',()=>{
  for(const limit of [5,20,40]){const g=game();g.element('series').value=String(limit);g.run('start()');
  for(let i=0;i<limit;i++){
-  if(i&&i%5===0){g.tick(1);g.run('shoot()');assert.equal(g.run('shots'),i);g.run('nextTarget();reload()');g.tick(2);}
+  if(i&&i%5===0){g.tick(1);g.run('shoot()');assert.equal(g.run('shots'),i);g.run('nextTarget()');}
+  if(i){g.run('reload()');g.tick(2);}
   g.tick(.8);centre(g);g.run('shoot()');
  }
  assert.equal(g.run('shots'),limit);assert.equal(g.run('score'),limit*10);assert.equal(g.run('marks.length'),5);assert.equal(g.run('cardIndex'),limit/5-1);

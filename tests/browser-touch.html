@@ -22,7 +22,11 @@ document.querySelector('#run').onclick=async()=>{
  check(Number(get('score').textContent)<10,'glissement déplace effectivement le point d’impact');
  click('recenter');await wait(200);
  for(let i=1;i<40;i++){
-  if(i%5===0){click('nextTarget');click('reload');await wait(2000);}
+  if(i%5===0)click('nextTarget');
+  const before=get('sessionProgress').textContent;tap('fire');await wait(100);check(get('sessionProgress').textContent===before&&get('ammo').textContent==='0','tir à vide bloqué '+i);
+  check(get('status').textContent==='Rechargement nécessaire','rechargement manuel requis '+i);
+  click('reload');tap('fire');await until(()=>get('status').textContent==='1 plomb chargé');
+  check(get('sessionProgress').textContent===before,'tir bloqué pendant rechargement '+i);
   tap('fire');await wait(800);
  }
  check(get('sessionProgress').textContent.includes('40/40'),'40 départs et 8 cartons');

@@ -1,7 +1,7 @@
 {
   "name": "cjajlk-precision",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "scripts": {
     "start": "node server.mjs",

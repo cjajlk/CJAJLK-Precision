@@ -1,3 +1,7 @@
+# Version 0.6.1 — Carabine sportive à un coup
+
+Un seul plomb chargé. Après chaque tir, appuyez sur **R / RECHARGER** et attendez la fin de l’animation avant de tirer. Le compteur **0/5 à 5/5** concerne le carton, pas la capacité de l’arme. Les armes historiques restent inchangées. [Détails et tests](docs/MONOCOUP-0.6.1.md).
+
 # Version 0.6.0 — Correctifs V2
 
 Séances sportives de 5, 20 ou 40 plombs : cinq plombs par carton, puis **CARTON SUIVANT**. Utilisez **C / RECENTRER**, **V / VISÉE**, **Espace / TIR**, **R / RECHARGER** et **T / RAMENER**. Après renvoi, attendez la fin de transition puis reprenez le tir avec T ou le bouton.
