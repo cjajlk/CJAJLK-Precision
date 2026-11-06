@@ -11,7 +11,7 @@ test('séances 5, 20, 40 : arrêt à cinq, changement explicite, sauvegarde et f
  for(const limit of [5,20,40]){const g=game();g.element('series').value=String(limit);g.run('start()');
  for(let i=0;i<limit;i++){
   if(i&&i%5===0){g.tick(1);g.run('shoot()');assert.equal(g.run('shots'),i);g.run('nextTarget()');}
-  if(i){g.run('reload()');g.tick(2);}
+  if(i){g.run('reload()');g.tick(2);g.key('KeyV');}
   g.tick(.8);centre(g);g.run('shoot()');
  }
  assert.equal(g.run('shots'),limit);assert.equal(g.run('score'),limit*10);assert.equal(g.run('marks.length'),5);assert.equal(g.run('cardIndex'),limit/5-1);
@@ -21,7 +21,7 @@ test('séances 5, 20, 40 : arrêt à cinq, changement explicite, sauvegarde et f
 });
 test('recentrage explicite, conservation après rechargement et tir manqué enregistré',()=>{
  const g=game();g.element('series').value='5';g.run('start();yaw=.1;pitch=.1;recenter()');assert.equal(g.run('yaw'),0);assert.equal(g.run('pitch'),g.run('basePitch()'));
- g.run('zoom=true;camera.rotation.y=.2;camera.updateMatrixWorld(true);shoot();reload()');g.tick(2);assert.equal(g.run('zoom'),true);assert.equal(g.run('shotLog[0].onCard'),false);assert.equal(g.run('shotLog[0].score'),0);assert.ok(g.run('Math.abs(shotLog[0].impactMM.x)')>40);assert.equal(g.run('readSessions(localStorage)[0].shots.length'),1);
+ g.run('zoom=true;camera.rotation.y=.2;camera.updateMatrixWorld(true);shoot();reload()');g.tick(2);assert.equal(g.run('zoom'),false);assert.equal(g.run('shotLog[0].onCard'),false);assert.equal(g.run('shotLog[0].score'),0);assert.ok(g.run('Math.abs(shotLog[0].impactMM.x)')>40);assert.equal(g.run('readSessions(localStorage)[0].shots.length'),1);
  g.run('retrieveTarget();yaw=.2;recenter()');assert.equal(g.run('yaw'),.2);
 });
 test('sauvegarde bornée et erreur de stockage explicite',()=>{

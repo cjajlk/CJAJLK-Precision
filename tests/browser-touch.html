@@ -25,9 +25,9 @@ document.querySelector('#run').onclick=async()=>{
   if(i%5===0)click('nextTarget');
   const before=get('sessionProgress').textContent;tap('fire');await wait(100);check(get('sessionProgress').textContent===before&&get('ammo').textContent==='0','tir à vide bloqué '+i);
   check(get('status').textContent==='Rechargement nécessaire','rechargement manuel requis '+i);
-  click('reload');tap('fire');await until(()=>get('status').textContent==='1 plomb chargé');
+  click('reload');tap('fire');await until(()=>get('status').textContent.startsWith('1 plomb chargé'));
   check(get('sessionProgress').textContent===before,'tir bloqué pendant rechargement '+i);
-  tap('fire');await wait(800);
+  click('zoom');await wait(400);tap('fire');await wait(800);
  }
  check(get('sessionProgress').textContent.includes('40/40'),'40 départs et 8 cartons');
  check(get('nextTarget').disabled,'fin de séance bloque le carton suivant');

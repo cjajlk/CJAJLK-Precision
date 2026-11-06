@@ -133,11 +133,13 @@ let weapon=0,ammo=12,active=false,paused=false,score=0,shots=0,hits=0,remaining=
 try{best=Number(localStorage.getItem('cjajlk-precision-best'))||0;}catch{}$('best').textContent=best;
 const marks=[];const ray=new T.Raycaster();const v2=new T.Vector2();let audio;
 function sound(type){if(!$('sound').checked)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();const duration=type==='shot'?.16:.08;const buffer=audio.createBuffer(1,audio.sampleRate*duration,audio.sampleRate);const data=buffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,3);const source=audio.createBufferSource();source.buffer=buffer;const filter=audio.createBiquadFilter();filter.type='lowpass';filter.frequency.value=type==='shot'?900+weapon*400:2200;const gain=audio.createGain();gain.gain.value=type==='shot'?.3:.07;source.connect(filter).connect(gain).connect(audio.destination);source.start();}catch{}}
+let needsPosition=false,holdTime=0,visualFatigue=0;
+function takePosition(){if(active&&!paused&&!inspectionBusy()&&!reloadLeft&&(!sport||ammo>0)){zoom=!zoom;if(zoom){needsPosition=false;holdTime=0;}}}
 function loadedCapacity(){return sport?1:WEAPONS[weapon].capacity;}
 function updateHUD(){
  $('score').textContent=score;$('accuracy').textContent=shots?Math.round(hits/shots*100)+'%':'—';$('ammo').textContent=ammo;$('capacity').textContent=sport?' / 1 plomb':' / '+WEAPONS[weapon].capacity;
  $('weaponName').textContent=sport?'AIR 10 M · DIOPTRE':WEAPONS[weapon].name+(weapon===1?' · DIOPTRE':'');
- $('status').textContent=reloadLeft>0?'RECHARGEMENT…':sport?(ammo?'1 plomb chargé':'Rechargement nécessaire'):ammo?'PRÊT':'CHARGEUR VIDE · R';$('timer').textContent=mode==='free'?'LIBRE':Math.ceil(remaining)+' s';
+ $('status').textContent=reloadLeft>0?'RECHARGEMENT…':sport?(ammo?(needsPosition?'1 plomb chargé · Reprendre la visée':'1 plomb chargé'):'Rechargement nécessaire'):ammo?'PRÊT':'CHARGEUR VIDE · R';$('timer').textContent=mode==='free'?'LIBRE':Math.ceil(remaining)+' s';
  $('viewLabel').textContent=sport?(carrier.inspecting?'EXAMEN RAPPROCHÉ':zoom?'CONFORT VISUEL ×'+$('comfort').value+' · SANS EFFET SUR LE SCORE':'SPORT 10 M · V POUR ÉPAULER'):'MODE HISTORIQUE';
 }
 function selectWeapon(n){
@@ -145,11 +147,12 @@ function selectWeapon(n){
  ammoByWeapon[weapon]=ammo;weapon=n;menuWeapon=n;ammo=ammoByWeapon[n];trigger=false;zoom=false;buildGun();
  document.querySelectorAll('[data-weapon]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.weapon)===n));updateHUD();
 }
-function reload(){if(!active||paused||inspectionBusy()||reloadLeft||ammo===loadedCapacity())return;reloadZoom=zoom;reloadLeft=WEAPONS[weapon].reload;trigger=false;zoom=false;sound('reload');updateHUD();}
+function reload(){if(!active||paused||inspectionBusy()||reloadLeft||ammo===loadedCapacity())return;reloadZoom=sport?false:zoom;reloadLeft=WEAPONS[weapon].reload;trigger=false;zoom=false;sound('reload');updateHUD();}
 function shoot(){
  if(!active||paused||inspectionBusy()||reloadLeft||elapsed-lastShot<WEAPONS[weapon].interval)return;
  if(sport&&sessionLimit&&(shots>=sessionLimit||shotLog.filter(s=>s.card===cardIndex).length>=5)){trigger=false;return;}
  if(ammo<=0){if(!sport)reload();else{trigger=false;updateHUD();}return;}
+ if(sport&&needsPosition){trigger=false;return;}
  // Use the camera pose last presented to the player. Recoil is applied afterwards.
  const spread=sport?0:WEAPONS[weapon].spread*(zoom?.35:1);
  v2.set(sport?0:(Math.random()-.5)*spread,sport?0:(Math.random()-.5)*spread);
@@ -174,10 +177,12 @@ function shoot(){
  intersection.object.add(mark);marks.push(mark);if(marks.length>160){const old=marks.shift();old.removeFromParent();old.traverse(o=>o.geometry?.dispose());}
  }
  $('feedback').textContent=pts?('+'+pts+(pts===10?' · PLEIN CENTRE':'')):'HORS ZONE';feedbackLeft=.8;
+ if(sport){zoom=false;needsPosition=true;trigger=false;holdTime=0;yaw+=.00012;pitch-=.00008;}
  recoil+=sport?.006:WEAPONS[weapon].recoil;flash.intensity=sport?0:8;sound('shot');persistSession();updateHUD();
 }
 function clearMarks(){marks.splice(0).forEach(m=>{m.removeFromParent();m.traverse(o=>o.geometry?.dispose());});}
 function start(){
+ needsPosition=false;holdTime=visualFatigue=0;
  sport=$('profile').value==='sport';sessionLimit=sport?Number($('series').value)||0:0;cardIndex=0;sessionId=Date.now()+'-'+Math.random().toString(36).slice(2);sessionSaved=true;reloadZoom=false;active=true;paused=false;score=shots=hits=0;remaining=60;
  mode=sport?'free':$('mode').value;moving=!sport&&$('moving').checked;const distance=sport?SPORT_TARGET.distanceM:Number($('distance').value);
  carrier.reset(distance);inspectionBlend=0;resumeRequired=false;selectedTarget=1;$('targetChoice').value='1';
@@ -199,9 +204,9 @@ function aim(dx,dy){
  yaw=T.MathUtils.clamp(yaw-dx*sensitivity,-.64,.64);pitch=T.MathUtils.clamp(pitch-dy*sensitivity,-.38,.38);
 }
 
-document.addEventListener('mousemove',e=>{if(document.pointerLockElement===canvas)aim(e.movementX,e.movementY);});canvas.addEventListener('pointerdown',e=>{if(!active||paused)return;if(e.pointerType==='mouse'){if(e.button===0){trigger=true;shoot();}if(e.button===2&&!inspectionBusy())zoom=true;}});let touchPoint=null;canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'){touchPoint={x:e.clientX,y:e.clientY,id:e.pointerId};canvas.setPointerCapture(e.pointerId);}});canvas.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'&&touchPoint?.id===e.pointerId){aim((e.clientX-touchPoint.x)*2,(e.clientY-touchPoint.y)*2);touchPoint={x:e.clientX,y:e.clientY,id:e.pointerId};}else if(e.pointerType==='mouse'&&document.pointerLockElement!==canvas&&active&&!paused){aim(e.movementX,e.movementY);}});window.addEventListener('pointerup',e=>{if(e.button===0)trigger=false;if(touchPoint?.id===e.pointerId)touchPoint=null;if(e.pointerType==='mouse'&&e.button===2)zoom=false;});window.addEventListener('pointercancel',()=>{trigger=false;touchPoint=null;});window.addEventListener('contextmenu',e=>e.preventDefault());$('fire').addEventListener('pointerdown',e=>{e.preventDefault();trigger=true;shoot();});$('zoom').onclick=()=>{if(active&&!paused&&!inspectionBusy())zoom=!zoom;};
+document.addEventListener('mousemove',e=>{if(document.pointerLockElement===canvas)aim(e.movementX,e.movementY);});canvas.addEventListener('pointerdown',e=>{if(!active||paused)return;if(e.pointerType==='mouse'){if(e.button===0){trigger=true;shoot();}if(e.button===2&&!zoom)takePosition();}});let touchPoint=null;canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'){touchPoint={x:e.clientX,y:e.clientY,id:e.pointerId};canvas.setPointerCapture(e.pointerId);}});canvas.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'&&touchPoint?.id===e.pointerId){aim((e.clientX-touchPoint.x)*2,(e.clientY-touchPoint.y)*2);touchPoint={x:e.clientX,y:e.clientY,id:e.pointerId};}else if(e.pointerType==='mouse'&&document.pointerLockElement!==canvas&&active&&!paused){aim(e.movementX,e.movementY);}});window.addEventListener('pointerup',e=>{if(e.button===0)trigger=false;if(touchPoint?.id===e.pointerId)touchPoint=null;if(e.pointerType==='mouse'&&e.button===2)zoom=false;});window.addEventListener('pointercancel',()=>{trigger=false;touchPoint=null;});window.addEventListener('contextmenu',e=>e.preventDefault());$('fire').addEventListener('pointerdown',e=>{e.preventDefault();trigger=true;shoot();});$('zoom').onclick=takePosition;
 window.addEventListener('keydown',e=>{if(e.target.matches('select,input'))return;if(e.code==='Escape'){pause();return;}if(!active||paused)return;if(e.code==='Space'){e.preventDefault();if(acceptsSpace(e,weapon))shoot();}if(!inspectionBusy()&&!(sport&&sessionLimit)&&(e.code==='ArrowLeft'||e.code==='ArrowRight')){e.preventDefault();const next=(Number($('targetChoice').value)+(e.code==='ArrowRight'?1:2))%3;$('targetChoice').value=String(next);}
-if(e.code==='KeyC'&&!e.repeat)recenter();if(e.code==='KeyT'&&!e.repeat)retrieveTarget();if(e.code==='KeyV'&&!e.repeat&&!inspectionBusy()){zoom=!zoom;}if(e.code==='KeyR'&&(!sport||!e.repeat))reload();if(['Digit1','Digit2','Digit3'].includes(e.code))selectWeapon(Number(e.code.slice(-1))-1);});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&active&&!paused&&!inspectionBusy())pause();});window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+if(e.code==='KeyC'&&!e.repeat)recenter();if(e.code==='KeyT'&&!e.repeat)retrieveTarget();if(e.code==='KeyV'&&!e.repeat)takePosition();if(e.code==='KeyR'&&(!sport||!e.repeat))reload();if(['Digit1','Digit2','Digit3'].includes(e.code))selectWeapon(Number(e.code.slice(-1))-1);});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&active&&!paused&&!inspectionBusy())pause();});window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}window.addEventListener('resize',resize);resize();buildGun();targets.forEach(t=>t.group.position.set(t.base,0,-6));
 let previous=performance.now();
 function frame(now){
@@ -221,7 +226,10 @@ function frame(now){
  inspectionBlend=T.MathUtils.lerp(inspectionBlend,active&&carrier.inspecting?1:0,1-Math.exp(-dt*7));if(inspectionBlend<.001&&!carrier.inspecting)inspectionBlend=0;
  recoil=T.MathUtils.lerp(recoil,0,1-Math.exp(-dt*11));flash.intensity*=Math.exp(-dt*35);feedbackLeft-=dt;if(feedbackLeft<=0)$('feedback').textContent='';
  camera.position.set(targets[selectedTarget].base*inspectionBlend,T.MathUtils.lerp(1.65,targets[selectedTarget].face.position.y,inspectionBlend),4);
- if(sport)currentPose=aimFilter.step(yaw,pitch,dt,elapsed,$('oscillations').checked&&!inspectionBusy());
+ const holding=sport&&active&&!paused&&!inspectionBusy()&&zoom&&!reloadLeft;
+ holdTime=holding?holdTime+dt:0;visualFatigue=Math.max(0,Math.min(1,visualFatigue+(holding?(holdTime>6?dt/30:0):-realDt/3)));
+ canvas.style.filter=sport&&$('fatigue').checked&&$('realism').value!=='discovery'?'blur('+(visualFatigue*($('realism').value==='simulation'?.65:.35)).toFixed(3)+'px)':'none';
+ if(sport)currentPose=aimFilter.step(yaw,pitch,dt,elapsed,$('oscillations').checked&&!inspectionBusy(),$('realism').value||'discovery',holdTime);
  else {const breathing=active&&!paused&&!inspectionBusy()&&zoom&&weapon===1?.0007:0;currentPose={pitch:pitch+recoil*.18+Math.sin(elapsed*1.8)*breathing,yaw:yaw+Math.sin(elapsed*1.1)*breathing*.6};}
  camera.rotation.set(currentPose.pitch*(1-inspectionBlend),currentPose.yaw*(1-inspectionBlend),0);
  const aiming=active&&!paused&&!inspectionBusy()&&zoom&&reloadLeft===0;

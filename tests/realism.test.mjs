@@ -1,0 +1,5 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {game} from './harness.mjs';
+test('sport 0.6.2 : sortie, décalage visible et reprise explicite après recharge',()=>{const g=game();g.run('start();zoom=true');g.tick(.5);const yaw=g.run('yaw');g.key('Space');assert.equal(g.run('zoom'),false);assert.notEqual(g.run('yaw'),yaw);assert.equal(g.run('needsPosition'),true);g.key('KeyV');assert.equal(g.run('needsPosition'),true);g.key('KeyR');g.tick(2);assert.equal(g.run('zoom'),false);g.key('Space');assert.equal(g.run('shots'),1);g.key('KeyV');g.tick(.4);g.key('Space');assert.equal(g.run('shots'),2);});
+test('fatigue bornée, récupération en pause, découverte sans flou',()=>{const g=game();g.element('realism').value='simulation';g.element('fatigue').checked=true;g.run('start();zoom=true');g.tick(40);assert.equal(g.run('visualFatigue'),1);assert.equal(g.element('scene').style.filter,'blur(0.650px)');g.run('pause()');g.tick(4);assert.equal(g.run('visualFatigue'),0);g.element('realism').value='discovery';g.run('resume();zoom=true');g.tick(40);assert.equal(g.element('scene').style.filter,'none');});

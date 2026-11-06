@@ -82,3 +82,11 @@ Validation : rendu du dioptre inspecté dans le navigateur ; tir sur cible donna
 - Impacts conservés et nombre d'impacts/points affichés pour le carton examiné.
 - Les petites bordures claires autour des impacts permettent de les lire dans le noir de la cible.
 Tests : `node --test tests/rules.test.mjs tests/carrier.test.mjs` (4 tests réussis).
+
+## Version 0.6.2 — Tir réel et simulateur
+
+Le menu **Tir réel → Mon carnet** ouvre le carnet indépendant : saisie rapide ou détaillée, séries libres, séances de 30 plombs par défaut, historique, progression par format, photos, sauvegarde JSON et ressources hors ligne. Export PDF par l’impression du navigateur, cartes PNG et partage natif lorsqu’il est disponible.
+
+Dans le simulateur sportif : rechargez avec R / RECHARGER puis reprenez la position avec V / VISÉE après chaque tir. Trois profils de ressenti et fatigue facultative.
+
+Voir [le rapport de livraison et les limites des tests](docs/LIVRAISON-0.6.2.md). Tests navigateur : `tests/browser-notebook.html`, `tests/browser-exports.html` et `tests/browser-touch.html` sur le serveur local. Ils ne remplacent pas un essai sur téléphone physique.
