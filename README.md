@@ -90,3 +90,9 @@ Le menu **Tir réel → Mon carnet** ouvre le carnet indépendant : saisie rapid
 Dans le simulateur sportif : rechargez avec R / RECHARGER puis reprenez la position avec V / VISÉE après chaque tir. Trois profils de ressenti et fatigue facultative.
 
 Voir [le rapport de livraison et les limites des tests](docs/LIVRAISON-0.6.2.md). Tests navigateur : `tests/browser-notebook.html`, `tests/browser-exports.html` et `tests/browser-touch.html` sur le serveur local. Ils ne remplacent pas un essai sur téléphone physique.
+
+## Version 0.6.3 — Retour du club
+
+Nombre de plombs par cible avec passage automatique, cartes de résultats mobiles, cibles illustratives stables, notifications discrètes, confirmation de suppression et sensations facultatives. Les anciennes séries sont conservées, le nombre par cible ne change pas les catégories de progression.
+
+[Rapport V0.6.3, tests et limites](docs/LIVRAISON-0.6.3.md). Parcours dédié : `tests/browser-063.html`. Recharger avec une connexion pour mettre à jour les ressources hors ligne ; ne pas vider les données du navigateur.
