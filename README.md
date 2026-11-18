@@ -96,3 +96,7 @@ Voir [le rapport de livraison et les limites des tests](docs/LIVRAISON-0.6.2.md)
 Nombre de plombs par cible avec passage automatique, cartes de résultats mobiles, cibles illustratives stables, notifications discrètes, confirmation de suppression et sensations facultatives. Les anciennes séries sont conservées, le nombre par cible ne change pas les catégories de progression.
 
 [Rapport V0.6.3, tests et limites](docs/LIVRAISON-0.6.3.md). Parcours dédié : `tests/browser-063.html`. Recharger avec une connexion pour mettre à jour les ressources hors ligne ; ne pas vider les données du navigateur.
+
+## V0.6.4 — Saisie au stand
+
+Pavé tactile 0–10, annulation du dernier tir et correction au pavé, statistiques par cible et histogramme des scores, comparaisons de formats compatibles, écran allumé facultatif, chronomètre/minuteur et observation des tirs ratés. Les anciennes séances et les exports restent compatibles. Voir [le bilan de livraison](docs/LIVRAISON-0.6.4.md). Tests : `npm test` et `tests/browser-suite.html` depuis le serveur local.
